@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Archive — a library of everything</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg:#0b0a08;
+    --bg-raised:#141210;
+    --panel:#1a1712;
+    --panel-hover:#211d16;
+    --border:#2c271d;
+    --border-soft:#211d16;
+    --text:#ece4d0;
+    --text-dim:#a89c81;
+    --text-faint:#6f6553;
+    --brass:#d1a83a;
+    --brass-dim:#a5822a;
+    --brass-soft:rgba(209,168,58,0.13);
+    --teal:#68a49e;
+    --teal-soft:rgba(104,164,158,0.13);
+    --red:#b1543f;
+    --red-soft:rgba(177,84,63,0.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    height:100vh;
+    overflow:hidden;
+  }
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+  button{font-family:inherit;}
+
+  .app{
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    max-width:1180px;
+    margin:0 auto;
+    border-left:1px solid var(--border-soft);
+    border-right:1px solid var(--border-soft);
+  }
+
+  /* ---------- TOPBAR ---------- */
+  .topbar{
+    flex-shrink:0;
+    border-bottom:1px solid var(--border-soft);
+    background:var(--bg-raised);
+    padding:14px 24px;
+    display:flex;
+    align-items:center;
+    gap:20px;
+  }
+  .brand-block{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    flex-shrink:0;
+  }
+  .brand-mark{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.14em;
+    color:var(--brass);
+    border:1px solid var(--brass-dim);
+    padding:3px 6px;
+    border-radius:2px;
+  }
+  .brand-name{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:18px;
+  }
+  .crumb{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px;
+    color:var(--text-faint);
+    flex:1;
+    min-width:0;
+    overflow:hidden;
+    white-space:nowrap;
+  }
+  .crumb-item{
+    cursor:pointer;
+    color:var(--text-dim);
+    padding:3px 4px;
+    border-radius:4px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .crumb-item:hover{color:var(--brass);background:var(--panel-hover);}
+  .crumb-item.current{color:var(--brass);cursor:default;}
+  .crumb-item.current:hover{background:none;}
+  .crumb-sep{color:var(--border);flex-shrink:0;}
+
+  .search-wrap{
+    position:relative;
+    width:230px;
+    flex-shrink:0;
+  }
+  .search-wrap input{
+    width:100%;
+    background:var(--panel);
+    border:1px solid var(--border);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    font-size:12.5px;
+    padding:8px 12px 8px 28px;
+    border-radius:6px;
+    outline:none;
+  }
+  .search-wrap input::placeholder{color:var(--text-faint);}
+  .search-wrap input:focus{border-color:var(--brass-dim);}
+  .search-icon{
+    position:absolute;
+    left:9px;
+    top:9px;
+    color:var(--text-faint);
+    font-size:12px;
+    pointer-events:none;
+  }
+  .search-drop{
+    position:absolute;
+    top:calc(100% + 6px);
+    right:0;
+    width:300px;
+    max-height:340px;
+    overflow-y:auto;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    box-shadow:0 12px 28px rgba(0,0,0,0.5);
+    display:none;
+    z-index:50;
+  }
+  .search-drop.open{display:block;}
+  .search-hit{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:9px 12px;
+    cursor:pointer;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .search-hit:last-child{border-bottom:none;}
+  .search-hit:hover{background:var(--panel-hover);}
+  .search-hit-mark{
+    flex-shrink:0;
+    width:26px;height:26px;
+    border:1px solid;
+    border-radius:6px;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Fraunces',serif;font-weight:600;font-size:12px;
+  }
+  .search-hit-text{min-width:0;flex:1;}
+  .search-hit-name{font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .search-hit-sub{font-size:10.5px;color:var(--text-faint);}
+  .search-empty{padding:16px 12px;font-size:12px;color:var(--text-faint);text-align:center;}
+
+  /* ---------- STAGE ---------- */
+  .stage{
+    flex:1;
+    min-height:0;
+    overflow-y:auto;
+    position:relative;
+  }
+  .stage-inner{
+    padding:34px 30px 60px;
+    animation:drawerIn 0.32s cubic-bezier(.2,.7,.3,1);
+  }
+  @keyframes drawerIn{
+    from{opacity:0;transform:translateY(10px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+
+  /* ---- HOME ---- */
+  .home-hero{
+    text-align:center;
+    max-width:520px;
+    margin:10px auto 38px;
+  }
+  .hero-glyph{
+    font-family:'Fraunces',serif;
+    font-size:34px;
+    color:var(--brass);
+    margin-bottom:6px;
+  }
+  .hero-title{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:30px;
+  }
+  .hero-sub{
+    color:var(--text-faint);
+    font-size:13.5px;
+    margin-top:8px;
+    line-height:1.55;
+  }
+  .hero-stats{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--text-dim);
+    margin-top:14px;
+    letter-spacing:0.03em;
+  }
+  .hero-stats span{color:var(--brass-dim);}
+
+  .wings-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:16px;
+    max-width:960px;
+    margin:0 auto;
+  }
+  .wing-card{
+    position:relative;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:4px 14px 14px 4px;
+    padding:22px 20px 20px;
+    cursor:pointer;
+    overflow:hidden;
+    transition:transform 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .wing-card::before{
+    content:'';
+    position:absolute;
+    left:0;top:0;bottom:0;
+    width:5px;
+    background:var(--wing-color,var(--brass));
+  }
+  .wing-card:hover{
+    background:var(--panel-hover);
+    border-color:var(--wing-color,var(--brass-dim));
+    transform:translateY(-2px);
+  }
+  .wing-tab{
+    display:inline-block;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.06em;
+    color:var(--wing-color,var(--brass));
+    border:1px solid var(--wing-color,var(--brass-dim));
+    padding:2px 6px;
+    border-radius:2px;
+    margin-bottom:12px;
+  }
+  .wing-name{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:19px;
+    line-height:1.25;
+  }
+  .wing-desc{
+    font-size:12px;
+    color:var(--text-faint);
+    margin-top:6px;
+    line-height:1.5;
+    min-height:36px;
+  }
+  .wing-foot{
+    display:flex;
+    justify-content:space-between;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;
+    color:var(--text-dim);
+    margin-top:16px;
+    padding-top:12px;
+    border-top:1px solid var(--border-soft);
+  }
+
+  /* ---- WING (shelf grid) ---- */
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+    margin-bottom:22px;
+    flex-wrap:wrap;
+  }
+  .section-title{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:24px;
+  }
+  .section-meta{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--text-faint);
+  }
+  .shelf-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+    gap:10px;
+  }
+  .shelf-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:13px 14px;
+    cursor:pointer;
+    transition:background 0.12s,border-color 0.12s;
+  }
+  .shelf-card:hover{background:var(--panel-hover);border-color:var(--card-color,var(--brass-dim));}
+  .shelf-card-top{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .shelf-mark{
+    flex-shrink:0;
+    width:32px;height:32px;
+    background:var(--bg-raised);
+    border:1px solid var(--card-color,var(--brass-dim));
+    clip-path:polygon(0 0, 78% 0, 100% 22%, 100% 100%, 0 100%);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Fraunces',serif;font-weight:600;font-size:13px;
+    color:var(--card-color,var(--brass));
+  }
+  .shelf-name{
+    font-family:'Fraunces',serif;
+    font-size:14px;
+    font-weight:500;
+    line-height:1.25;
+  }
+  .shelf-code{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    color:var(--text-faint);
+    margin-top:5px;
+  }
+  .shelf-preview{
+    font-size:11.5px;
+    color:var(--text-dim);
+    margin-top:9px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    border-top:1px solid var(--border-soft);
+    padding-top:8px;
+  }
+
+  /* ---- SHELF (books grid) ---- */
+  .book-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+    gap:14px;
+  }
+  .book-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px 10px 4px 4px;
+    padding:16px 16px 14px;
+    cursor:pointer;
+    transition:background 0.12s,transform 0.12s,border-color 0.12s;
+    position:relative;
+  }
+  .book-card::before{
+    content:'';
+    position:absolute;
+    top:0;left:16px;right:16px;
+    height:3px;
+    background:var(--card-color,var(--brass));
+    border-radius:0 0 3px 3px;
+  }
+  .book-card:hover{background:var(--panel-hover);border-color:var(--card-color,var(--brass-dim));transform:translateY(-2px);}
+  .book-title{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:15px;
+    line-height:1.3;
+    margin-top:6px;
+  }
+  .book-author{
+    font-size:11.5px;
+    font-style:italic;
+    color:var(--card-color,var(--brass));
+    margin-top:3px;
+  }
+  .book-blurb-preview{
+    font-size:12px;
+    color:var(--text-dim);
+    line-height:1.5;
+    margin-top:9px;
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+  .book-tags{
+    display:flex;
+    gap:6px;
+    margin-top:10px;
+    flex-wrap:wrap;
+  }
+  .tag{
+    font-size:9.5px;
+    font-family:'JetBrains Mono',monospace;
+    color:var(--card-color,var(--brass));
+    background:var(--tag-bg,var(--brass-soft));
+    padding:3px 7px;
+    border-radius:4px;
+  }
+
+  .empty{
+    padding:40px 20px;
+    text-align:center;
+    color:var(--text-faint);
+    font-size:13px;
+  }
+
+  /* ---------- BOOK OVERLAY ---------- */
+  .book-overlay{
+    position:fixed;
+    inset:0;
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:200;
+  }
+  .book-overlay.open{display:flex;}
+  .book-backdrop{
+    position:absolute;
+    inset:0;
+    background:rgba(6,5,3,0.72);
+    backdrop-filter:blur(2px);
+  }
+  .book-panel{
+    position:relative;
+    width:100%;
+    max-width:640px;
+    max-height:82vh;
+    background:var(--bg-raised);
+    border:1px solid var(--border);
+    border-bottom:none;
+    border-radius:16px 16px 0 0;
+    margin:0 18px;
+    overflow-y:auto;
+    animation:drawerUp 0.28s cubic-bezier(.2,.8,.3,1);
+    box-shadow:0 -20px 60px rgba(0,0,0,0.55);
+  }
+  @keyframes drawerUp{
+    from{opacity:0;transform:translateY(28px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  .book-panel-inner{
+    padding:26px 30px 34px;
+  }
+  .book-panel-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:14px;
+  }
+  .book-panel-close{
+    background:none;
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    width:30px;height:30px;
+    border-radius:7px;
+    cursor:pointer;
+    font-size:14px;
+    flex-shrink:0;
+  }
+  .book-panel-close:hover{background:var(--panel-hover);color:var(--text);}
+  .book-panel-code{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--card-color,var(--brass-dim));
+  }
+  .book-panel-title{
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    font-size:24px;
+    line-height:1.25;
+    margin-top:6px;
+  }
+  .book-panel-author{
+    font-size:13.5px;
+    font-style:italic;
+    color:var(--card-color,var(--brass));
+    margin-top:4px;
+  }
+  .book-panel-blurb{
+    font-size:14px;
+    line-height:1.65;
+    color:var(--text-dim);
+    margin-top:18px;
+    border-top:1px solid var(--border-soft);
+    padding-top:16px;
+  }
+  .book-panel-tags{
+    display:flex;
+    gap:8px;
+    margin-top:16px;
+    flex-wrap:wrap;
+  }
+  .reaction-card{
+    margin-top:20px;
+    background:var(--teal-soft);
+    border:1px solid rgba(104,164,158,0.3);
+    border-radius:10px;
+    padding:12px 14px;
+    display:flex;
+    align-items:center;
+    gap:11px;
+  }
+  .reaction-avatar{
+    flex-shrink:0;
+    width:30px;height:30px;
+    border-radius:50%;
+    background:var(--panel);
+    border:1px solid var(--teal);
+    color:var(--teal);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Fraunces',serif;font-weight:600;font-size:12px;
+  }
+  .reaction-text{font-size:12.5px;}
+  .reaction-name{font-size:10.5px;color:var(--text-faint);margin-top:2px;}
+  .book-panel-nav{
+    display:flex;
+    justify-content:space-between;
+    margin-top:24px;
+    padding-top:16px;
+    border-top:1px solid var(--border-soft);
+  }
+  .nav-btn{
+    background:var(--panel);
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    font-size:11.5px;
+    padding:8px 13px;
+    border-radius:7px;
+    cursor:pointer;
+  }
+  .nav-btn:hover:not(:disabled){background:var(--panel-hover);color:var(--text);}
+  .nav-btn:disabled{opacity:0.3;cursor:default;}
+
+  @media (max-width:720px){
+    .wings-grid{grid-template-columns:1fr;}
+    .search-wrap{width:150px;}
+    .crumb{font-size:10.5px;}
+    .topbar{gap:10px;padding:12px 16px;}
+    .stage-inner{padding:22px 16px 50px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="brand-block">
+      <span class="brand-mark">§</span>
+      <span class="brand-name">The Archive</span>
+    </div>
+    <div class="crumb" id="crumb"></div>
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input id="search" placeholder="Jump to a subject…" oninput="onSearchInput(this.value)" onfocus="onSearchInput(this.value)">
+      <div class="search-drop" id="search-drop"></div>
+    </div>
+  </div>
+
+  <div class="stage" id="stage"></div>
+</div>
+
+<div class="book-overlay" id="book-overlay">
+  <div class="book-backdrop" onclick="closeBook()"></div>
+  <div class="book-panel" id="book-panel"></div>
+</div>
+
+<script>
+const CATS = [
+["Academic Studies","Academic Studies","001.3","default"],
+["Environmental Science","Environmental Science","577.1","nature"],
+["Climate & Weather","Climate Systems","551.6","nature"],
+["Football","Football","796.33","default"],
+["Basketball","Basketball","796.32","default"],
+["Combat Sports","Combat Sports","796.8","default"],
+["Athletics & Olympics","Athletics","796.4","default"],
+["Extreme Sports","Extreme Sports","796.04","default"],
+["Gothic Horror","Gothic Horror","823.9","dark"],
+["Supernatural Horror","Supernatural Horror","813.87","dark"],
+["Cosmic Horror","Cosmic Horror","813.88","dark"],
+["Psychological Horror","Psychological Horror","813.89","dark"],
+["Detective Classics","Detective Fiction","823.91","dark"],
+["Noir Fiction","Noir Fiction","813.52","dark"],
+["Crime Fiction","Crime Fiction","364.1","dark"],
+["True Crime","True Crime","364.15","dark"],
+["Spy & Espionage","Espionage","823.92","dark"],
+["Thriller","Thriller","813.6","dark"],
+["Science Fiction","Science Fiction","813.876","default"],
+["Cyberpunk","Cyberpunk","813.62","default"],
+["Dystopian Fiction","Dystopian Fiction","813.54","default"],
+["Fantasy","Fantasy","813.66","default"],
+["Urban Fantasy","Urban Fantasy","813.67","default"],
+["Fairy Tales & Folklore","Folklore","398.2","default"],
+["Mythology","Mythology","292","default"],
+["Romance","Romance","813.085","default"],
+["Poetry","Poetry","811","default"],
+["Philosophy","Philosophy","100","default"],
+["Psychology","Psychology","150","default"],
+["Sociology","Sociology","301","default"],
+["Anthropology","Anthropology","301.2","default"],
+["Linguistics","Linguistics","410","default"],
+["Ancient History","Ancient History","930","default"],
+["Modern History","Modern History","909","default"],
+["War & Military History","Military History","355","dark"],
+["Biography & Memoir","Biography","920","default"],
+["Diaries & Letters","Correspondence","808.86","default"],
+["Essays","Essays","824","default"],
+["Short Stories","Short Fiction","808.3","default"],
+["Classics","Classic Literature","813.009","default"],
+["Satire & Humor","Satire","817","default"],
+["Children's Books","Children's Literature","813.0092","default"],
+["Young Adult","Young Adult Fiction","813.0908","default"],
+["Graphic Novels & Comics","Graphic Novels","741.5","default"],
+["Cooking & Culinary","Culinary Arts","641.5","default"],
+["Travel","Travel Writing","910","default"],
+["Art & Design","Art","700","default"],
+["Architecture","Architecture","720","default"],
+["Music","Music","780","default"],
+["Film & Theatre","Film","791","default"],
+["Photography","Photography","770","default"],
+["Business & Economics","Economics","330","default"],
+["Finance & Investing","Finance","332","default"],
+["Self-Help","Self-Help","158","default"],
+["Health & Wellness","Wellness","613","default"],
+["Medicine","Medicine","610","default"],
+["Physics","Physics","530","nature"],
+["Chemistry","Chemistry","540","nature"],
+["Biology","Biology","570","nature"],
+["Astronomy & Space","Astronomy","520","nature"],
+["Mathematics","Mathematics","510","default"],
+["Technology & Computing","Computing","004","default"],
+["Artificial Intelligence","Artificial Intelligence","006.3","default"],
+["Engineering","Engineering","620","default"],
+["Politics & Government","Politics","320","default"],
+["Law","Law","340","default"],
+["Religion & Spirituality","Religion","200","default"],
+["Occult & Paranormal","The Occult","133","dark"],
+["Nature Writing","Nature Writing","508","nature"],
+["Wildlife & Zoology","Zoology","590","nature"],
+["Botany & Gardening","Botany","580","nature"],
+["Geography","Geography","910.02","nature"],
+["Geology & Earth Science","Geology","550","nature"],
+["Puzzles & Games","Puzzles","793.7","default"],
+["Western","Westerns","813.087","default"],
+["Nautical & Sea Adventures","Sea Adventures","910.45","default"],
+["Steampunk","Steampunk","813.63","default"],
+["Education","Education","370","default"],
+["Parenting & Family","Parenting","649","default"]
+];
+
+const SECTIONS = {
+  dark:    { label:"Dark Wing",    desc:"Horror, noir, crime, and things that stay with you after dark.", range:"800–899 · crime & horror", color:"var(--red)", soft:"var(--red-soft)" },
+  nature:  { label:"Sciences Wing", desc:"Earth, sky, biology, and the field notes of everything alive.",  range:"500–599 · sciences",        color:"var(--teal)", soft:"var(--teal-soft)" },
+  default: { label:"General Wing", desc:"Everything else — fiction, history, craft, and the rest of the stacks.", range:"000–499, 600–999 · general", color:"var(--brass)", soft:"var(--brass-soft)" }
+};
+
+const FIRST = ["Elena","Marcus","Ines","Tobias","Priya","Callum","Noor","Desmond","Yuki","Astrid","Rafael","Miriam","Soren","Adaeze","Felix","Lucia"];
+const LAST = ["Voss","Achebe","Kowalski","Marchetti","Solberg","Nakamura","Okafor","Delacroix","Ferreira","Lindqvist","Abara","Castellano","Whitlock","Reyes","Bergstrom","Osei"];
+const READERS = ["M. Osei","T. Alvarez","J. Whitlock","R. Castellano","S. Bergstrom","K. Nakamura","D. Ferreira","A. Kowalski"];
+
+const TITLE_TPL = [
+  s => `The Secret History of ${s}`,
+  s => `A Field Guide to ${s}`,
+  s => `Notes on ${s}`,
+  s => `The Hidden Art of ${s}`
+];
+const BLURBS = [
+  "An investigative deep dive that reframes everything you thought you knew.",
+  "Practical, vivid, and endlessly quotable — a shelf staple.",
+  "Fragments and observations gathered over a decade of close study.",
+  "Lush prose meets rigorous craft in this quiet favorite."
+];
+const REACTIONS = [
+  "Added to shelf",
+  "Couldn't put it down",
+  "Slow start, strong finish",
+  "Recommending this to everyone",
+  "Atmospheric and sharp",
+  "On my nightstand now",
+  "Finished in one sitting",
+  "Instant favorite"
+];
+const TAGS_BY_GROUP = {
+  dark:["atmospheric","slow-burn","unsettling","classic"],
+  nature:["field-tested","observational","seasonal","illustrated"],
+  default:["reader-favorite","award-winning","debut","translated"]
+};
+
+function buildBooks(short, group, ci){
+  const tags = TAGS_BY_GROUP[group];
+  const books = [];
+  for(let i=0;i<4;i++){
+    const title = TITLE_TPL[i](short);
+    const author = FIRST[(i*7+ci*3)%FIRST.length] + " " + LAST[(i*5+ci*11)%LAST.length];
+    const blurb = BLURBS[i];
+    const t1 = tags[i%tags.length];
+    const t2 = tags[(i+1)%tags.length];
+    const reader = READERS[(ci+i)%READERS.length];
+    const reaction = REACTIONS[(ci*3+i*5)%REACTIONS.length];
+    books.push({title,author,blurb,t1,t2,reader,reaction});
+  }
+  return books;
+}
+
+const DATA = CATS.map((c,ci)=>{
+  const [name, short, code, group] = c;
+  return {
+    id:"cat"+ci,
+    name, short, code, group,
+    books: buildBooks(short, group, ci)
+  };
+});
+
+const TOTAL_VOLUMES = DATA.reduce((n,d)=>n+d.books.length,0);
+const byGroup = { dark:[], nature:[], default:[] };
+DATA.forEach(d => byGroup[d.group].push(d));
+
+function initial(name){ return name.trim().charAt(0).toUpperCase(); }
+function esc(s){ return s; }
+
+/* ---------------- STATE ---------------- */
+let state = { view:"home", wing:null, subjectId:null, bookIndex:0 };
+
+function go(view, wing, subjectId){
+  state.view = view;
+  state.wing = wing || null;
+  state.subjectId = subjectId || null;
+  render();
+}
+
+/* ---------------- BREADCRUMB ---------------- */
+function renderCrumb(){
+  const crumb = document.getElementById('crumb');
+  const parts = [{label:"Home", action:()=>go('home')}];
+  if(state.view === 'wing' || state.view === 'shelf'){
+    parts.push({label:SECTIONS[state.wing].label, action:()=>go('wing', state.wing)});
+  }
+  if(state.view === 'shelf'){
+    const d = DATA.find(x=>x.id===state.subjectId);
+    parts.push({label:d.name, action:()=>go('shelf', state.wing, state.subjectId)});
+  }
+  crumb.innerHTML = parts.map((p,i)=>{
+    const isCurrent = i === parts.length-1;
+    return `${i>0?'<span class="crumb-sep">/</span>':''}<span class="crumb-item${isCurrent?' current':''}" onclick="(${isCurrent?'()=>{}':'window.__crumbNav'+i})()">${p.label}</span>`;
+  }).join('');
+  parts.forEach((p,i)=>{ window['__crumbNav'+i] = p.action; });
+}
+
+/* ---------------- HOME ---------------- */
+function renderHome(){
+  const wingsHtml = ["dark","nature","default"].map(key=>{
+    const s = SECTIONS[key];
+    const items = byGroup[key];
+    const vol = items.reduce((n,d)=>n+d.books.length,0);
+    return `
+      <div class="wing-card" style="--wing-color:${s.color}" onclick="go('wing','${key}')">
+        <div class="wing-tab">${s.range}</div>
+        <div class="wing-name">${s.label}</div>
+        <div class="wing-desc">${s.desc}</div>
+        <div class="wing-foot"><span>${items.length} subjects</span><span>${vol} volumes</span></div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="home-hero">
+      <div class="hero-glyph">§</div>
+      <div class="hero-title">Pull open a drawer to begin</div>
+      <div class="hero-sub">Three wings of the stacks, each holding its own subjects and shelves. Choose a wing, then a subject, then a volume.</div>
+      <div class="hero-stats"><span>${DATA.length}</span> subjects catalogued · <span>${TOTAL_VOLUMES}</span> volumes on record</div>
+    </div>
+    <div class="wings-grid">${wingsHtml}</div>
+  `;
+}
+
+/* ---------------- WING ---------------- */
+function renderWing(key){
+  const s = SECTIONS[key];
+  const items = byGroup[key];
+  const cardsHtml = items.map(d=>{
+    return `
+      <div class="shelf-card" style="--card-color:${s.color}" onclick="go('shelf','${key}','${d.id}')">
+        <div class="shelf-card-top">
+          <div class="shelf-mark">${initial(d.name)}</div>
+          <div>
+            <div class="shelf-name">${d.name}</div>
+            <div class="shelf-code">${d.code} · ${d.books.length} volumes</div>
+          </div>
+        </div>
+        <div class="shelf-preview">${d.books[0].title}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="section-head">
+      <div class="section-title">${s.label}</div>
+      <div class="section-meta">${s.range} · ${items.length} subjects</div>
+    </div>
+    <div class="shelf-grid">${cardsHtml}</div>
+  `;
+}
+
+/* ---------------- SHELF (books) ---------------- */
+function renderShelf(id){
+  const d = DATA.find(x=>x.id===id);
+  const s = SECTIONS[d.group];
+  const cardsHtml = d.books.map((b,i)=>`
+    <div class="book-card" style="--card-color:${s.color};--tag-bg:${s.soft}" onclick="openBook('${d.id}',${i})">
+      <div class="book-title">${b.title}</div>
+      <div class="book-author">${b.author}</div>
+      <div class="book-blurb-preview">${b.blurb}</div>
+      <div class="book-tags"><span class="tag">${b.t1}</span><span class="tag">${b.t2}</span></div>
+    </div>
+  `).join('');
+
+  return `
+    <div class="section-head">
+      <div class="section-title">${d.name}</div>
+      <div class="section-meta">${d.code} · ${d.books.length} volumes catalogued</div>
+    </div>
+    <div class="book-grid">${cardsHtml}</div>
+  `;
+}
+
+/* ---------------- RENDER STAGE ---------------- */
+function render(){
+  renderCrumb();
+  const stage = document.getElementById('stage');
+  let inner = "";
+  if(state.view === 'home') inner = renderHome();
+  else if(state.view === 'wing') inner = renderWing(state.wing);
+  else if(state.view === 'shelf') inner = renderShelf(state.subjectId);
+  stage.innerHTML = `<div class="stage-inner">${inner}</div>`;
+  stage.scrollTop = 0;
+}
+
+/* ---------------- BOOK OVERLAY ---------------- */
+function openBook(subjectId, index){
+  state.subjectId = subjectId;
+  state.bookIndex = index;
+  const d = DATA.find(x=>x.id===subjectId);
+  const s = SECTIONS[d.group];
+  const b = d.books[index];
+  const panel = document.getElementById('book-panel');
+  panel.style.setProperty('--card-color', s.color);
+  panel.innerHTML = `
+    <div class="book-panel-inner">
+      <div class="book-panel-top">
+        <div>
+          <div class="book-panel-code">${d.code} · ${d.name} · vol. ${index+1} of ${d.books.length}</div>
+          <div class="book-panel-title">${b.title}</div>
+          <div class="book-panel-author">${b.author}</div>
+        </div>
+        <button class="book-panel-close" onclick="closeBook()">✕</button>
+      </div>
+      <div class="book-panel-blurb">${b.blurb}</div>
+      <div class="book-panel-tags"><span class="tag" style="--tag-bg:${s.soft}">${b.t1}</span><span class="tag" style="--tag-bg:${s.soft}">${b.t2}</span></div>
+      <div class="reaction-card">
+        <div class="reaction-avatar">${b.reader.charAt(0)}</div>
+        <div>
+          <div class="reaction-text">${b.reaction}</div>
+          <div class="reaction-name">${b.reader}, reader</div>
+        </div>
+      </div>
+      <div class="book-panel-nav">
+        <button class="nav-btn" onclick="stepBook(-1)" ${index===0?'disabled':''}>← Previous volume</button>
+        <button class="nav-btn" onclick="stepBook(1)" ${index===d.books.length-1?'disabled':''}>Next volume →</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('book-overlay').classList.add('open');
+}
+
+function stepBook(delta){
+  openBook(state.subjectId, state.bookIndex + delta);
+}
+
+function closeBook(){
+  document.getElementById('book-overlay').classList.remove('open');
+}
+
+/* ---------------- SEARCH TYPEAHEAD ---------------- */
+function onSearchInput(v){
+  const drop = document.getElementById('search-drop');
+  const q = v.trim().toLowerCase();
+  if(q === ""){ drop.classList.remove('open'); drop.innerHTML=""; return; }
+  const hits = DATA.filter(d => d.name.toLowerCase().includes(q)).slice(0,8);
+  if(hits.length === 0){
+    drop.innerHTML = '<div class="search-empty">No subjects match that search.</div>';
+  } else {
+    drop.innerHTML = hits.map(d=>{
+      const s = SECTIONS[d.group];
+      return `
+        <div class="search-hit" onclick="jumpToSubject('${d.id}')">
+          <div class="search-hit-mark" style="border-color:${s.color};color:${s.color}">${initial(d.name)}</div>
+          <div class="search-hit-text">
+            <div class="search-hit-name">${d.name}</div>
+            <div class="search-hit-sub">${s.label} · ${d.code}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+  drop.classList.add('open');
+}
+
+function jumpToSubject(id){
+  const d = DATA.find(x=>x.id===id);
+  document.getElementById('search').value = "";
+  document.getElementById('search-drop').classList.remove('open');
+  go('shelf', d.group, d.id);
+}
+
+document.addEventListener('click', (e)=>{
+  const wrap = document.querySelector('.search-wrap');
+  if(!wrap.contains(e.target)) document.getElementById('search-drop').classList.remove('open');
+});
+
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape') closeBook();
+});
+
+render();
+</script>
+
+</body>
+</html>
